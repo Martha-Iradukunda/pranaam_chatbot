@@ -1,66 +1,55 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Message = {
   role: "user" | "assistant";
   content: string;
 };
 
+const suggestions = [
+  "Book an appointment",
+  "Find a doctor",
+  "View departments",
+  "Hospital services",
+];
+
 export default function Home() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const input = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (open) input.current?.focus();
+  }, [open]);
 
   async function sendMessage(text?: string) {
     const userMessage = (text ?? message).trim();
-
     if (!userMessage || loading) return;
 
-    setMessages((previous) => [
-      ...previous,
-      {
-        role: "user",
-        content: userMessage,
-      },
-    ]);
-
+    setMessages((m) => [...m, { role: "user", content: userMessage }]);
     setMessage("");
     setLoading(true);
 
     try {
-      const response = await fetch("/api/chat", {
+      const res = await fetch("/api/chat", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: userMessage,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMessage }),
       });
 
-      const data = await response.json();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
 
-      if (!response.ok) {
-        throw new Error(data.error || "Something went wrong");
-      }
-
-      setMessages((previous) => [
-        ...previous,
+      setMessages((m) => [...m, { role: "assistant", content: data.reply }]);
+    } catch {
+      setMessages((m) => [
+        ...m,
         {
           role: "assistant",
-          content: data.reply,
-        },
-      ]);
-    } catch (error) {
-      console.error(error);
-
-      setMessages((previous) => [
-        ...previous,
-        {
-          role: "assistant",
-          content:
-            "Sorry, I couldn't process your request. Please try again.",
+          content: "Sorry, I couldn't process that. Please try again.",
         },
       ]);
     } finally {
@@ -69,122 +58,145 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="border-b bg-white px-6 py-4">
-        <div className="mx-auto max-w-5xl">
-          <h1 className="text-xl font-semibold text-gray-900">
+    <main className="min-h-screen bg-slate-50">
+      <header className="border-b bg-white px-6 py-5">
+        <div className="mx-auto max-w-6xl">
+          <h1 className="text-xl font-bold text-slate-900">
             Pranaam Hospitals
           </h1>
-          <p className="text-sm text-gray-500">
-            AI Hospital Assistant
-          </p>
+          <p className="text-sm text-slate-500">AI Hospital Assistant</p>
         </div>
       </header>
 
-      {/* Chat */}
-      <section className="flex-1">
-        <div className="mx-auto flex min-h-[calc(100vh-80px)] max-w-5xl flex-col px-6 py-8">
-
-          {/* Welcome */}
-          {messages.length === 0 && (
-            <>
-              <div className="max-w-2xl rounded-2xl border bg-white p-6 shadow-sm">
-                <h2 className="text-2xl font-semibold text-gray-900">
-                  👋 Hello!
-                </h2>
-
-                <p className="mt-3 text-gray-600">
-                  I&apos;m the Pranaam Hospitals AI Assistant. I can help
-                  you find doctors, book appointments, and answer questions
-                  about the hospital.
+      {open && (
+        <div className="fixed bottom-24 right-5 z-40 flex h-[600px] w-[380px] max-w-[calc(100%-32px)] flex-col overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200">
+          
+          {/* Header */}
+          <div className="bg-gradient-to-r from-cyan-700 to-teal-600 p-5 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="text-2xl">🤖</div>
+                  <h2 className="font-semibold">Pranaam AI</h2>
+                </div>
+                <p className="mt-1 flex items-center gap-1.5 text-xs text-white/80">
+                  <span className="h-2 w-2 rounded-full bg-green-300" />
+                  Here to help you
                 </p>
               </div>
 
-              {/* Suggestions */}
-              <div className="mt-6 flex flex-wrap gap-3">
-                {[
-                  "I want to book an appointment",
-                  "Find a doctor",
-                  "What departments do you have?",
-                  "What services do you offer?",
-                ].map((question) => (
-                  <button
-                    key={question}
-                    onClick={() => sendMessage(question)}
-                    className="rounded-full border bg-white px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
-                  >
-                    {question}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* Messages */}
-          <div className="mt-6 flex flex-col gap-4">
-            {messages.map((msg, index) => (
-              <div
-                key={index}
-                className={`flex ${
-                  msg.role === "user"
-                    ? "justify-end"
-                    : "justify-start"
-                }`}
+              <button
+                onClick={() => setOpen(false)}
+                className="text-xl text-white/80 hover:text-white"
               >
-                <div
-                  className={`max-w-2xl rounded-2xl px-5 py-3 ${
-                    msg.role === "user"
-                      ? "bg-black text-white"
-                      : "border bg-white text-gray-800 shadow-sm"
-                  }`}
-                >
-                  {msg.content}
-                </div>
-              </div>
-            ))}
+                ×
+              </button>
+            </div>
+          </div>
 
-            {/* Loading */}
-            {loading && (
-              <div className="flex justify-start">
-                <div className="rounded-2xl border bg-white px-5 py-3 text-gray-500 shadow-sm">
-                  Thinking...
+          {/* Chat */}
+          <div className="flex-1 overflow-y-auto bg-slate-50 p-4">
+            {messages.length === 0 && (
+              <div className="py-4">
+                <div className="rounded-2xl rounded-tl-none bg-white p-4 shadow-sm">
+                  <h3 className="font-semibold text-slate-800">
+                    Hi there! 👋
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    How can I help you today? I can help you find a doctor,
+                    learn about our services, or book an appointment.
+                  </p>
+                </div>
+
+                <p className="mt-5 mb-2 text-xs font-medium text-slate-400">
+                  QUICK ACTIONS
+                </p>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {suggestions.map((item) => (
+                    <button
+                      key={item}
+                      onClick={() => sendMessage(item)}
+                      className="rounded-xl border bg-white p-3 text-left text-sm text-slate-700 shadow-sm transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700"
+                    >
+                      {item}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
+
+            <div className="space-y-3">
+              {messages.map((msg, i) => (
+                <div
+                  key={i}
+                  className={`flex ${
+                    msg.role === "user" ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  <div
+                    className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-6 ${
+                      msg.role === "user"
+                        ? "rounded-br-sm bg-teal-600 text-white"
+                        : "rounded-bl-sm bg-white text-slate-700 shadow-sm"
+                    }`}
+                  >
+                    {msg.content}
+                  </div>
+                </div>
+              ))}
+
+              {loading && (
+                <div className="w-fit rounded-2xl bg-white px-4 py-3 text-sm text-slate-400 shadow-sm">
+                  Pranaam AI is thinking...
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Input */}
-          <div className="mt-auto pt-8">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                sendMessage();
-              }}
-              className="flex items-center gap-3 rounded-2xl border bg-white p-3 shadow-sm"
-            >
-              <input
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              sendMessage();
+            }}
+            className="border-t bg-white p-3"
+          >
+            <div className="flex items-end rounded-2xl border bg-slate-50 p-2 focus-within:border-teal-400">
+              <textarea
+                ref={input}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Ask me anything about Pranaam Hospitals..."
-                className="flex-1 bg-transparent px-3 py-2 text-gray-900 outline-none placeholder:text-gray-400"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+                placeholder="Ask Pranaam AI anything..."
+                rows={1}
+                className="flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none"
               />
 
               <button
-                type="submit"
-                disabled={loading || !message.trim()}
-                className="rounded-xl bg-black px-5 py-3 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!message.trim() || loading}
+                className="rounded-xl bg-teal-600 px-3 py-2 text-white hover:bg-teal-700 disabled:opacity-30"
               >
-                Send
+                ↑
               </button>
-            </form>
-
-            <p className="mt-2 text-center text-xs text-gray-400">
-              Pranaam AI Assistant
-            </p>
-          </div>
+            </div>
+          </form>
         </div>
-      </section>
+      )}
+
+      {/* Floating Button */}
+      <button
+        onClick={() => setOpen(!open)}
+        className="fixed bottom-5 right-5 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-teal-600 text-2xl text-white shadow-xl transition hover:scale-105 hover:bg-teal-700"
+        aria-label="Open Pranaam AI"
+      >
+        {open ? "×" : "💬"}
+      </button>
     </main>
   );
 }

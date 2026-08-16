@@ -1,9 +1,5 @@
-import OpenAI from "openai";
 import { NextResponse } from "next/server";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import Groq from "groq-sdk";
 
 export async function POST(request: Request) {
   try {
@@ -16,33 +12,37 @@ export async function POST(request: Request) {
       );
     }
 
-    const response = await openai.responses.create({
-      model: "gpt-5.6",
-      input: [
+    const groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY,
+    });
+
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant", // ✅ Try this one first
+      messages: [
         {
           role: "system",
           content:
-            "You are the AI assistant for Pranaam Hospitals. Be helpful, professional, and concise. For now, answer general questions. You will later be connected to verified Pranaam Hospitals website information and appointment systems.",
+            "You are the AI assistant for Pranaam Hospitals. Be helpful, professional, and concise.",
         },
         {
           role: "user",
           content: message,
         },
       ],
+      temperature: 0.7,
+      max_tokens: 1024,
     });
+
+    const reply = completion.choices[0]?.message?.content;
 
     return NextResponse.json({
-      reply: response.output_text,
+      reply: reply || "I couldn't generate a response.",
     });
-  } catch (error: any) {
-    console.error("OPENAI ERROR:", error);
 
+  } catch (error: any) {
+    console.error("Error:", error);
     return NextResponse.json(
-      {
-        error:
-          error?.message ||
-          "Something went wrong while communicating with OpenAI.",
-      },
+      { error: error.message || "Something went wrong" },
       { status: 500 }
     );
   }
