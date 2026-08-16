@@ -366,7 +366,7 @@ function Logo({ chat = false }: { chat?: boolean }) {
       }`}
     >
       <img
-        src={chat ? "/pranaam-logo.png" : "/logo.png"}
+        src={chat ? "/logo.png" : "/logo.png"}
         alt="Pranaam Hospitals - Built on Trust"
         className="h-full w-full object-contain"
       />
